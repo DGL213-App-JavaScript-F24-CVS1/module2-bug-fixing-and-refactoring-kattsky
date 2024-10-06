@@ -1,7 +1,7 @@
 "use strict";
 
 (() => {
-window.addEventListener("load", (event) => {
+window.addEventListener("load", () => {
 // *****************************************************************************
 // #region Constants and Variables
 
@@ -61,12 +61,24 @@ function initializeHistory(startingGrid) {
     grids.push(startingGrid);
 }   
 
+// function rollBackHistory() {
+//     if (grids.length > 0) {
+//         grids = grids.slice(0, grids.length-1);
+//         render(grids[grids.length-1]);
+//     }
+// }
+
 function rollBackHistory() {
-    if (grids.length > 0) {
-        grids = grids.slice(0, grids.length-1);
-        render(grids[grids.length-1]);
+    if (grids.length > 1) { // If there are grids to roll back to
+        grids = grids.slice(0, grids.length - 1); // Remove the last grid from the history
+        render(grids[grids.length-1]); // Render the new last grid
+    } else { // If there are no grids to roll back to
+        grids = grids.slice(0, 1); // Keep the first grid
+        render(grids[0]); // Render the first grid
+        undoButton.disabled = true; // Disable the button
     }
 }
+
 
 function transposeGrid() {
     for (let i = 0; i < grids.length; i++) {
@@ -87,7 +99,7 @@ function transposeGrid() {
 
 function render(grid) {
     for (let i = 0; i < grid.length; i++) {
-        ctx.fillStyle = `rgb(${grid[i][0]}, ${grid[i][0]}, ${grid[i][2]})`;
+        ctx.fillStyle = `rgb(${grid[i][0]}, ${grid[i][1]}, ${grid[i][2]})`;
         ctx.fillRect((i % CELLS_PER_AXIS) * CELL_WIDTH, Math.floor(i / CELLS_PER_AXIS) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
     }
     playerScoreText.textContent = playerScore;
@@ -96,9 +108,25 @@ function render(grid) {
 function updateGridAt(mousePositionX, mousePositionY) {
     const gridCoordinates = convertCartesiansToGrid(mousePositionX, mousePositionY);
     const newGrid = grids[grids.length-1].slice(); 
-    floodFill(newGrid, gridCoordinates, newGrid[gridCoordinates.column * CELLS_PER_AXIS + gridCoordinates.row])
-    grids.push(newGrid);
-    render(grids[grids.length-1]);    
+    floodFill(newGrid, gridCoordinates, newGrid[gridCoordinates.row * CELLS_PER_AXIS + gridCoordinates.column])
+
+    //reduce excessive render() calls
+
+    // directly check if the grid has changed
+
+    let numCellsFilled = 0;
+    for (let i = 0; i < newGrid.length; i++) {
+        if (!arraysAreEqual(newGrid[i], grids[grids.length-1][i])) {
+            numCellsFilled++;
+        }
+    }
+
+    if (numCellsFilled > 0) {
+        grids.push(newGrid);
+        render(grids[grids.length-1]);
+    } else {
+        return;
+    }
 }
 
 function updatePlayerScore() {
@@ -106,7 +134,7 @@ playerScore = playerScore > 0 ? playerScore -= 1 : 0;
 }
 
 function floodFill(grid, gridCoordinate, colorToChange) { 
-    if (arraysAreEqual(colorToChange, replacementColor)) { return } //The current cell is already the selected color
+    if (arraysAreEqual(grid[gridCoordinate.row * CELLS_PER_AXIS + gridCoordinate.column], replacementColor)) { return } //The current cell is already the selected color
     else if (!arraysAreEqual(grid[gridCoordinate.row * CELLS_PER_AXIS + gridCoordinate.column], colorToChange)) { return }  //The current cell is a different color than the initially clicked-on cell
     else {
         grid[gridCoordinate.row * CELLS_PER_AXIS + gridCoordinate.column] = replacementColor;
